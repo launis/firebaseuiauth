@@ -19,9 +19,6 @@ final shellNavigatorKey =
 
 @riverpod
 GoRouter goRoute(GoRouteRef ref) {
-  FirebaseUIAuth.configureProviders([
-    EmailAuthProvider(),
-  ]);
   final authRepository = ref.watch(authRepositoryProvider);
   return GoRouter(
     navigatorKey: rootNavigatorKey,
@@ -29,7 +26,6 @@ GoRouter goRoute(GoRouteRef ref) {
     errorBuilder: (context, state) =>
         const ErrorPageRoute().build(context, state),
     debugLogDiagnostics: true,
-    refreshListenable: GoRouterRefreshStream(authRepository.authStateChanges()),
     initialLocation: init(authRepository),
     redirect: (context, state) => redirect(authRepository, state),
   );
@@ -224,6 +220,7 @@ class CustomSignInScreen extends ConsumerWidget {
         title: const Text('Sign in'),
       ),
       body: SignInScreen(
+        providers: [EmailAuthProvider()],
         actions: [
           ForgotPasswordAction(
             (context, email) => ForgotPasswordPageRoute(
@@ -258,28 +255,12 @@ class CustomProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return ProfileScreen(
+      providers: [EmailAuthProvider()],
       actions: [
         SignedOutAction((context) {
           context.pushReplacement(SignInPageRoute.path);
         }),
       ],
     );
-  }
-}
-
-class GoRouterRefreshStream extends ChangeNotifier {
-  GoRouterRefreshStream(Stream<dynamic> stream) {
-    notifyListeners();
-    _subscription = stream.asBroadcastStream().listen(
-          (dynamic _) => notifyListeners(),
-        );
-  }
-
-  late final StreamSubscription<dynamic> _subscription;
-
-  @override
-  void dispose() {
-    _subscription.cancel();
-    super.dispose();
   }
 }
