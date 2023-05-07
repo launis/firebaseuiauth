@@ -203,7 +203,7 @@ init(authRepository) {
 
 redirect(authRepository, GoRouterState state) {
   if (authRepository.currentUser == null &&
-      !state.matchedLocation.startsWith('/forgot-password')) {
+      !state.matchedLocation.startsWith(ForgotPasswordPageRoute.path)) {
     return SignInPageRoute.path;
   }
   return null;
