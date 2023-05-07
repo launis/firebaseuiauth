@@ -127,7 +127,7 @@ extension $VerifyEmailPageRouteExtension on VerifyEmailPageRoute {
 // RiverpodGenerator
 // **************************************************************************
 
-String _$goRouteHash() => r'2aaf27a0e11b5b6c54367d2fa45074deb85cdac7';
+String _$goRouteHash() => r'85cde4a5ba7607af4c8e2786cf4f46596b0b4ad1';
 
 /// See also [goRoute].
 @ProviderFor(goRoute)
