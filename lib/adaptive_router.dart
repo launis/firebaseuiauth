@@ -195,20 +195,20 @@ class ErrorPageRoute extends GoRouteData {
 
 init(authRepository) {
   if (authRepository.currentUser == null) {
-    return '/signin';
+    return SignInPageRoute.path;
   }
 
   if (!authRepository.currentUser!.emailVerified &&
       authRepository.currentUser!.email != null) {
-    return '/verify-email';
+    return VerifyEmailPageRoute.path;
   }
-  return '/jobs';
+  return ProfilePageRoute.path;
 }
 
 redirect(authRepository, GoRouterState state) {
   if (authRepository.currentUser == null &&
       !state.matchedLocation.startsWith('/forgot-password')) {
-    return '/signin';
+    return SignInPageRoute.path;
   }
   return null;
 }
@@ -230,7 +230,7 @@ class CustomSignInScreen extends ConsumerWidget {
                     email: email == null
                         ? ''
                         : email == ''
-                            ? 'email@email'
+                            ? 'email@email.com'
                             : email)
                 .push(context),
           ),
@@ -257,9 +257,7 @@ class CustomProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-//    final authProviders = ref.watch(authProvidersProvider);
     return ProfileScreen(
-//      providers: authProviders,
       actions: [
         SignedOutAction((context) {
           context.pushReplacement(SignInPageRoute.path);
