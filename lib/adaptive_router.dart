@@ -6,8 +6,7 @@ import 'package:flutter_adaptive_scaffold/flutter_adaptive_scaffold.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-
-import 'auth_repository.dart';
+import 'package:firebase_auth/firebase_auth.dart' hide EmailAuthProvider;
 
 part 'adaptive_router.g.dart';
 
@@ -19,15 +18,25 @@ final shellNavigatorKey =
 
 @riverpod
 GoRouter goRoute(GoRouteRef ref) {
-  final authRepository = ref.watch(authRepositoryProvider);
   return GoRouter(
     navigatorKey: rootNavigatorKey,
     routes: $appRoutes,
     errorBuilder: (context, state) =>
         const ErrorPageRoute().build(context, state),
     debugLogDiagnostics: true,
-    initialLocation: init(authRepository),
-    redirect: (context, state) => redirect(authRepository, state),
+    redirect: (context, state) {
+      final User? currentUser = FirebaseAuth.instance.currentUser;
+      if (!state.matchedLocation.startsWith('/forgot-password')) {
+        if (currentUser == null) {
+          return SignInPageRoute.path;
+        }
+
+        if (!currentUser.emailVerified && currentUser.email != null) {
+          return VerifyEmailPageRoute.path;
+        }
+      }
+      return null;
+    },
   );
 }
 
@@ -171,8 +180,14 @@ class ProfilePageRoute extends GoRouteData {
   static const path = '/profile';
 
   @override
-  Widget build(BuildContext context, GoRouterState state) =>
-      const CustomProfileScreen();
+  Widget build(BuildContext context, GoRouterState state) => ProfileScreen(
+        providers: [EmailAuthProvider()],
+        actions: [
+          SignedOutAction((context) {
+            context.pushReplacement(SignInPageRoute.path);
+          }),
+        ],
+      );
 }
 
 class ErrorPageRoute extends GoRouteData {
@@ -187,26 +202,6 @@ class ErrorPageRoute extends GoRouteData {
       body: const Text('404 - Page not found!'),
     );
   }
-}
-
-init(authRepository) {
-  if (authRepository.currentUser == null) {
-    return SignInPageRoute.path;
-  }
-
-  if (!authRepository.currentUser!.emailVerified &&
-      authRepository.currentUser!.email != null) {
-    return VerifyEmailPageRoute.path;
-  }
-  return ProfilePageRoute.path;
-}
-
-redirect(authRepository, GoRouterState state) {
-  if (authRepository.currentUser == null &&
-      !state.matchedLocation.startsWith(ForgotPasswordPageRoute.path)) {
-    return SignInPageRoute.path;
-  }
-  return null;
 }
 
 class CustomSignInScreen extends ConsumerWidget {
@@ -245,22 +240,6 @@ class CustomSignInScreen extends ConsumerWidget {
                   : context.pushReplacement(VerifyEmailPageRoute.path)),
         ],
       ),
-    );
-  }
-}
-
-class CustomProfileScreen extends ConsumerWidget {
-  const CustomProfileScreen({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return ProfileScreen(
-      providers: [EmailAuthProvider()],
-      actions: [
-        SignedOutAction((context) {
-          context.pushReplacement(SignInPageRoute.path);
-        }),
-      ],
     );
   }
 }
