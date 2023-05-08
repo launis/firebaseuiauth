@@ -21,8 +21,10 @@ GoRouter goRoute(GoRouteRef ref) {
   return GoRouter(
     navigatorKey: rootNavigatorKey,
     routes: $appRoutes,
-    errorBuilder: (context, state) =>
-        const ErrorPageRoute().build(context, state),
+    errorBuilder: (context, state) => Scaffold(
+      appBar: AppBar(),
+      body: const Text('404 - Page not found!'),
+    ),
     debugLogDiagnostics: true,
     redirect: (context, state) {
       final User? currentUser = FirebaseAuth.instance.currentUser;
@@ -115,10 +117,10 @@ class RootPageRoute extends ShellRouteData {
   void indexToGo(int index, BuildContext context) {
     switch (index) {
       case 0:
-        context.go(ProfilePageRoute.path);
+        context.push(ProfilePageRoute.path);
         break;
       case 1:
-        context.go(SignInPageRoute.path);
+        context.push(SignInPageRoute.path);
         break;
     }
   }
@@ -130,9 +132,8 @@ class SignInPageRoute extends GoRouteData {
   static const path = '/signIn';
 
   @override
-  Widget build(BuildContext context, GoRouterState state) {
-    return const CustomSignInScreen();
-  }
+  Widget build(BuildContext context, GoRouterState state) =>
+      const CustomSignInScreen();
 }
 
 class VerifyEmailPageRoute extends GoRouteData {
@@ -141,21 +142,20 @@ class VerifyEmailPageRoute extends GoRouteData {
   static const path = '/verify-email';
 
   @override
-  Widget build(BuildContext context, GoRouterState state) {
-    return EmailVerificationScreen(
-      actions: [
-        EmailVerifiedAction(
-          () => context.pushReplacement(ProfilePageRoute.path),
-        ),
-        AuthCancelledAction(
-          (context) {
-            FirebaseUIAuth.signOut(context: context);
-            context.pushReplacement(SignInPageRoute.path);
-          },
-        ),
-      ],
-    );
-  }
+  Widget build(BuildContext context, GoRouterState state) =>
+      EmailVerificationScreen(
+        actions: [
+          EmailVerifiedAction(
+            () => context.pushReplacement(ProfilePageRoute.path),
+          ),
+          AuthCancelledAction(
+            (context) {
+              FirebaseUIAuth.signOut(context: context);
+              context.pushReplacement(SignInPageRoute.path);
+            },
+          ),
+        ],
+      );
 }
 
 class ForgotPasswordPageRoute extends GoRouteData {
@@ -196,50 +196,45 @@ class ErrorPageRoute extends GoRouteData {
   static const path = '/error';
 
   @override
-  Widget build(BuildContext context, GoRouterState state) {
-    return Scaffold(
-      appBar: AppBar(),
-      body: const Text('404 - Page not found!'),
-    );
-  }
+  Widget build(BuildContext context, GoRouterState state) => Scaffold(
+        appBar: AppBar(),
+        body: const Text('404 - Page not found!'),
+      );
 }
 
 class CustomSignInScreen extends ConsumerWidget {
   const CustomSignInScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // final authProviders = ref.watch(authProvidersProvider);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Sign in'),
-      ),
-      body: SignInScreen(
-        providers: [EmailAuthProvider()],
-        actions: [
-          ForgotPasswordAction(
-            (context, email) => ForgotPasswordPageRoute(
-                    email: email == null
-                        ? ''
-                        : email == ''
-                            ? 'email@email.com'
-                            : email)
-                .push(context),
-          ),
-          AuthStateChangeAction<SignedIn>((context, state) =>
-              state.user!.emailVerified
-                  ? context.push(ProfilePageRoute.path)
-                  : context.pushReplacement(VerifyEmailPageRoute.path)),
-          AuthStateChangeAction<UserCreated>((context, state) =>
-              state.credential.user!.emailVerified
-                  ? context.push(ProfilePageRoute.path)
-                  : context.pushReplacement(VerifyEmailPageRoute.path)),
-          AuthStateChangeAction<CredentialLinked>((context, state) =>
-              state.user.emailVerified
-                  ? context.push(ProfilePageRoute.path)
-                  : context.pushReplacement(VerifyEmailPageRoute.path)),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context, WidgetRef ref) => Scaffold(
+        appBar: AppBar(
+          title: const Text('Sign in'),
+        ),
+        body: SignInScreen(
+          providers: [EmailAuthProvider()],
+          actions: [
+            ForgotPasswordAction(
+              (context, email) => ForgotPasswordPageRoute(
+                      email: email == null
+                          ? ''
+                          : email == ''
+                              ? 'email@email.com'
+                              : email)
+                  .push(context),
+            ),
+            AuthStateChangeAction<SignedIn>((context, state) =>
+                state.user!.emailVerified
+                    ? context.push(ProfilePageRoute.path)
+                    : context.pushReplacement(VerifyEmailPageRoute.path)),
+            AuthStateChangeAction<UserCreated>((context, state) =>
+                state.credential.user!.emailVerified
+                    ? context.push(ProfilePageRoute.path)
+                    : context.pushReplacement(VerifyEmailPageRoute.path)),
+            AuthStateChangeAction<CredentialLinked>((context, state) =>
+                state.user.emailVerified
+                    ? context.push(ProfilePageRoute.path)
+                    : context.pushReplacement(VerifyEmailPageRoute.path)),
+          ],
+        ),
+      );
 }
