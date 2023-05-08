@@ -21,10 +21,8 @@ GoRouter goRoute(GoRouteRef ref) {
   return GoRouter(
     navigatorKey: rootNavigatorKey,
     routes: $appRoutes,
-    errorBuilder: (context, state) => Scaffold(
-      appBar: AppBar(),
-      body: const Text('404 - Page not found!'),
-    ),
+    errorBuilder: (context, state) =>
+        const ErrorPageRoute().build(context, state),
     debugLogDiagnostics: true,
     redirect: (context, state) {
       final User? currentUser = FirebaseAuth.instance.currentUser;
