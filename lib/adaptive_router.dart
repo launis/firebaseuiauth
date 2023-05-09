@@ -70,7 +70,7 @@ final GoRouter router = GoRouter(
           actions: [
             SignedOutAction(
               (context) {
-                context.pushReplacement('/signIn');
+                context.go('/signIn');
               },
             ),
           ],
