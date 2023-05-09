@@ -1,204 +1,94 @@
-import 'dart:async';
-
 import 'package:firebase_ui_auth/firebase_ui_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_adaptive_scaffold/flutter_adaptive_scaffold.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:firebase_auth/firebase_auth.dart' hide EmailAuthProvider;
 
-part 'adaptive_router.g.dart';
+// import 'go_router_refresh_stream.dart';
 
-final rootNavigatorKey =
-    GlobalKey<NavigatorState>(debugLabel: '_rootNavigatorKey');
+final GlobalKey<NavigatorState> _rootNavigatorKey =
+    GlobalKey<NavigatorState>(debugLabel: 'root');
+final GlobalKey<NavigatorState> _shellNavigatorKey =
+    GlobalKey<NavigatorState>(debugLabel: 'shell');
 
-final shellNavigatorKey =
-    GlobalKey<NavigatorState>(debugLabel: '_shellNavigatorKey');
+final GoRouter router = GoRouter(
+  initialLocation: '/signIn',
+  navigatorKey: _rootNavigatorKey,
+  debugLogDiagnostics: true,
+//      refreshListenable:
+//          GoRouterRefreshStream(authRepository.authStateChanges()),
+  redirect: (context, state) {
+    final User? currentUser = FirebaseAuth.instance.currentUser;
 
-@riverpod
-GoRouter goRoute(GoRouteRef ref) {
-  return GoRouter(
-    navigatorKey: rootNavigatorKey,
-    routes: $appRoutes,
-    errorBuilder: (context, state) =>
-        const ErrorPageRoute().build(context, state),
-    debugLogDiagnostics: true,
-    redirect: (context, state) {
-      final User? currentUser = FirebaseAuth.instance.currentUser;
-      if (!state.matchedLocation.startsWith('/forgot-password')) {
-        if (currentUser == null) {
-          return SignInPageRoute.path;
-        }
-
-        if (!currentUser.emailVerified && currentUser.email != null) {
-          return VerifyEmailPageRoute.path;
-        }
+    if (!state.matchedLocation.startsWith('/forgot-password')) {
+      if (currentUser == null) {
+        return '/signIn';
       }
-      return null;
-    },
-  );
-}
 
-@TypedShellRoute<RootPageRoute>(
-  routes: [
-    TypedGoRoute<SignInPageRoute>(
-      path: SignInPageRoute.path,
-    ),
-    TypedGoRoute<ProfilePageRoute>(
-      path: ProfilePageRoute.path,
-    ),
-    TypedGoRoute<ErrorPageRoute>(
-      path: ErrorPageRoute.path,
-    ),
-    TypedGoRoute<ForgotPasswordPageRoute>(
-      path: ForgotPasswordPageRoute.path,
-    ),
-    TypedGoRoute<VerifyEmailPageRoute>(
-      path: VerifyEmailPageRoute.path,
-    ),
-  ],
-)
-class RootPageRoute extends ShellRouteData {
-  const RootPageRoute();
-
-  static final GlobalKey<NavigatorState> $navigatorKey = shellNavigatorKey;
-
-  @override
-  Widget builder(BuildContext context, GoRouterState state, Widget navigator) {
-    final child = (((navigator as HeroControllerScope).child as Navigator)
-            .pages
-            .last as MaterialPage)
-        .child;
-
-    return AdaptiveScaffold(
-      key: const GlobalObjectKey('AdaptiveScaffold'),
-      selectedIndex: locationToIndex(state.location),
-      useDrawer: false,
-      internalAnimations: false,
-      destinations: const [
-        NavigationDestination(
-          icon: Icon(Icons.account_circle_outlined),
-          selectedIcon: Icon(Icons.account_circle),
-          label: 'Profile',
+      if (!currentUser.emailVerified && currentUser.email != null) {
+        return '/verify-email';
+      }
+    }
+    return null;
+  },
+  routes: <RouteBase>[
+    /// Application shell
+    ShellRoute(
+      navigatorKey: _shellNavigatorKey,
+      builder: (BuildContext context, GoRouterState state, Widget child) {
+        return ScaffoldWithNavBar(child: child);
+      },
+      routes: <RouteBase>[
+        GoRoute(
+          path: '/verify-email',
+          pageBuilder: (context, state) => NoTransitionPage(
+            child: EmailVerificationScreen(
+              actions: [
+                EmailVerifiedAction(
+                  () => context.pushReplacement('/profile'),
+                ),
+                AuthCancelledAction(
+                  (context) {
+                    FirebaseUIAuth.signOut();
+                    context.go('/signIn');
+                  },
+                ),
+              ],
+            ),
+          ),
         ),
-        NavigationDestination(
-          icon: Icon(Icons.login_outlined),
-          selectedIcon: Icon(Icons.login),
-          label: 'SignIn',
+        GoRoute(
+          path: '/forgot-password',
+          pageBuilder: (context, state) => const NoTransitionPage(
+            child: ForgotPasswordScreen(),
+          ),
+        ),
+        GoRoute(
+          path: '/signIn',
+          pageBuilder: (context, state) => const NoTransitionPage(
+            child: CustomSignInScreen(),
+          ),
+        ),
+        GoRoute(
+          path: '/profile',
+          pageBuilder: (context, state) => NoTransitionPage(
+            child: ProfileScreen(
+              providers: [EmailAuthProvider()],
+              actions: [
+                SignedOutAction(
+                  (context) {
+                    context.pushReplacement('/signIn');
+                  },
+                ),
+              ],
+            ),
+          ),
         ),
       ],
-      onSelectedIndexChange: (p0) {
-        indexToGo(p0, context);
-      },
-      body: (context) {
-        return child;
-      },
-      smallBody: (context) {
-        return child;
-      },
-    );
-  }
-
-  int locationToIndex(String location) {
-    if (location.startsWith(ProfilePageRoute.path)) {
-      return 0;
-    }
-
-    if (location.startsWith(SignInPageRoute.path)) {
-      return 1;
-    }
-
-    return 0;
-  }
-
-  void indexToGo(int index, BuildContext context) {
-    switch (index) {
-      case 0:
-        context.push(ProfilePageRoute.path);
-        break;
-      case 1:
-        context.push(SignInPageRoute.path);
-        break;
-    }
-  }
-}
-
-class SignInPageRoute extends GoRouteData {
-  const SignInPageRoute();
-
-  static const path = '/signIn';
-
-  @override
-  Widget build(BuildContext context, GoRouterState state) =>
-      const CustomSignInScreen();
-}
-
-class VerifyEmailPageRoute extends GoRouteData {
-  const VerifyEmailPageRoute();
-
-  static const path = '/verify-email';
-
-  @override
-  Widget build(BuildContext context, GoRouterState state) =>
-      EmailVerificationScreen(
-        actions: [
-          EmailVerifiedAction(
-            () => context.pushReplacement(ProfilePageRoute.path),
-          ),
-          AuthCancelledAction(
-            (context) {
-              FirebaseUIAuth.signOut(context: context);
-              context.pushReplacement(SignInPageRoute.path);
-            },
-          ),
-        ],
-      );
-}
-
-class ForgotPasswordPageRoute extends GoRouteData {
-  final String email;
-
-  const ForgotPasswordPageRoute({
-    required this.email,
-  });
-
-  static const path = '/forgot-password/:email';
-
-  @override
-  Widget build(BuildContext context, GoRouterState state) =>
-      ForgotPasswordScreen(
-        email: email.toString(),
-      );
-}
-
-class ProfilePageRoute extends GoRouteData {
-  const ProfilePageRoute();
-
-  static const path = '/profile';
-
-  @override
-  Widget build(BuildContext context, GoRouterState state) => ProfileScreen(
-        providers: [EmailAuthProvider()],
-        actions: [
-          SignedOutAction((context) {
-            context.pushReplacement(SignInPageRoute.path);
-          }),
-        ],
-      );
-}
-
-class ErrorPageRoute extends GoRouteData {
-  const ErrorPageRoute();
-
-  static const path = '/error';
-
-  @override
-  Widget build(BuildContext context, GoRouterState state) => Scaffold(
-        appBar: AppBar(),
-        body: const Text('404 - Page not found!'),
-      );
-}
+    ),
+  ],
+);
 
 class CustomSignInScreen extends ConsumerWidget {
   const CustomSignInScreen({super.key});
@@ -212,27 +102,76 @@ class CustomSignInScreen extends ConsumerWidget {
           providers: [EmailAuthProvider()],
           actions: [
             ForgotPasswordAction(
-              (context, email) => ForgotPasswordPageRoute(
-                      email: email == null
-                          ? ''
-                          : email == ''
-                              ? 'email@email.com'
-                              : email)
-                  .push(context),
+              (context, email) => context.push('/forgot-password'),
             ),
             AuthStateChangeAction<SignedIn>((context, state) =>
                 state.user!.emailVerified
-                    ? context.push(ProfilePageRoute.path)
-                    : context.pushReplacement(VerifyEmailPageRoute.path)),
+                    ? context.push('/profile')
+                    : context.pushReplacement('/verify-email')),
             AuthStateChangeAction<UserCreated>((context, state) =>
                 state.credential.user!.emailVerified
-                    ? context.push(ProfilePageRoute.path)
-                    : context.pushReplacement(VerifyEmailPageRoute.path)),
+                    ? context.push('/profile')
+                    : context.pushReplacement('/verify-email')),
             AuthStateChangeAction<CredentialLinked>((context, state) =>
                 state.user.emailVerified
-                    ? context.push(ProfilePageRoute.path)
-                    : context.pushReplacement(VerifyEmailPageRoute.path)),
+                    ? context.push('/profile')
+                    : context.pushReplacement('/verify-email')),
           ],
         ),
       );
+}
+
+class ScaffoldWithNavBar extends StatelessWidget {
+  /// Constructs an [ScaffoldWithNavBar].
+  const ScaffoldWithNavBar({
+    required this.child,
+    Key? key,
+  }) : super(key: key);
+
+  /// The widget to display in the body of the Scaffold.
+  /// In this sample, it is a Navigator.
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return AdaptiveScaffold(
+      destinations: const [
+        NavigationDestination(
+          icon: Icon(Icons.account_circle_outlined),
+          selectedIcon: Icon(Icons.account_circle),
+          label: 'Profile',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.login_outlined),
+          selectedIcon: Icon(Icons.login),
+          label: 'SignIn',
+        ),
+      ],
+      selectedIndex: _calculateSelectedIndex(context),
+      onSelectedIndexChange: (idx) => _onItemTapped(idx, context),
+      body: (_) => child,
+    );
+  }
+
+  static int _calculateSelectedIndex(BuildContext context) {
+    final String location = GoRouterState.of(context).location;
+    if (location.startsWith('/profile')) {
+      return 0;
+    }
+    if (location.startsWith('/sigIn')) {
+      return 1;
+    }
+    return 0;
+  }
+
+  void _onItemTapped(int index, BuildContext context) {
+    switch (index) {
+      case 0:
+        GoRouter.of(context).push('/profile');
+        break;
+      case 1:
+        GoRouter.of(context).push('/signIn');
+        break;
+    }
+  }
 }
